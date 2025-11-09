@@ -1,0 +1,19 @@
+# OS
+Thumbs.db
+.DS_Store
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Logs/Temp
+*.log
+tmp/
+.cache/
+
+# Exports
+*.zip
+*.7z
+
+# Images cache
+assets/.thumbnails/
