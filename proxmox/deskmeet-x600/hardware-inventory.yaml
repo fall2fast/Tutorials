@@ -1,0 +1,108 @@
+system:
+  name: "ASRock DeskMeet X600 Proxmox Host"
+  build_date: "2025-10"
+  purpose: "Primary Proxmox virtualization node with GPU passthrough"
+  location: "Basement server rack"
+
+chassis:
+  model: "ASRock DeskMeet X600"
+  form_factor: "8L SFF workstation barebone"
+  psu:
+    wattage: 500
+    type: "SFX 80+ Bronze"
+    notes: "Included with chassis"
+
+motherboard:
+  chipset: "AM5 / B650-class"
+  pci_express:
+    - slot: "PCIe x16"
+      version: "4.0"
+      use: "GPU passthrough"
+    - slot: "PCIe x1"
+      version: "3.0"
+      use: "10GbE NIC"
+  m2_slots:
+    - slot: "M.2_1"
+      version: "PCIe 4.0 x4"
+    - slot: "M.2_2"
+      version: "PCIe 4.0 x4"
+  sata_ports: 2
+
+cpu:
+  model: "AMD Ryzen 9 9950X"
+  architecture: "Zen 5"
+  cores: 16
+  threads: 32
+  tdp: 120
+  notes:
+    - "Supports ECO mode: 65W"
+    - "Best performance for VM workloads"
+    - "Top CPU supported by DeskMeet X600"
+
+cooling:
+  cpu_cooler:
+    model: "Noctua NH-L12S"
+    type: "Low-profile"
+    height_mm: 70
+  case_fans:
+    - model: "Noctua NF-P12 redux"
+      size_mm: 120
+      location: "front intake (replacing stock)"
+
+memory:
+  installed:
+    total_gb: 64
+    configuration: "2 x 32GB"
+    speed: "DDR5-6000 CL36"
+  max_supported: 128
+
+storage:
+  nvme:
+    - name: "Boot + VM pool"
+      size: "1TB"
+      interface: "PCIe 4.0 x4"
+      model: "WD SN850X / Samsung 990 Pro / P5 Plus"
+    - name: "VM storage / ZFS"
+      size: "2TB"
+      interface: "PCIe 4.0 x4"
+      model: "High endurance NVMe"
+  sata:
+    - enabled: false
+
+gpu:
+  model: "NVIDIA RTX A2000 12GB Low Profile"
+  tdp_watts: 70
+  length_mm: 168
+  purpose:
+    - "Transcoding"
+    - "Windows VM passthrough"
+    - "Light AI workloads"
+
+network:
+  onboard:
+    - type: "2.5GbE"
+      chipset: "Realtek"
+  pci_express:
+    - type: "10GbE"
+      model: "Intel X550-T2"
+      form_factor: "PCIe x4"
+
+proxmox:
+  version: "8.x"
+  filesystem: "ZFS on root"
+  vm_features:
+    - "GPU passthrough"
+    - "IOMMU enabled"
+    - "Nested virtualization"
+    - "Re-Size BAR enabled"
+
+power:
+  idle_watts: 45-55
+  vm_load_watts: 120
+  full_load_watts: 260-280
+  ups_recommended: "Yes (≥600VA)"
+
+notes:
+  - "Fan curves tuned for quiet operation (<33 dB under load)"
+  - "Replaced NAB9 node due to performance limitations"
+  - "X600 supports BIOS upgrades for future AM5 CPUs"
