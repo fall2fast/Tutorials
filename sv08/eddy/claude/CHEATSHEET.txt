@@ -1,0 +1,128 @@
+╔═══════════════════════════════════════════════════════════════════╗
+║            SV08 EDDY SENSOR - ONE-PAGE CHEAT SHEET               ║
+╚═══════════════════════════════════════════════════════════════════╝
+
+┌───────────────────────────────────────────────────────────────────┐
+│                          THE FIX                                  │
+└───────────────────────────────────────────────────────────────────┘
+Change ONE LINE in printer.cfg:
+  FROM: i2c_bus: i2c1
+  TO:   i2c_bus: i2c1_PB6_PB7
+
+┌───────────────────────────────────────────────────────────────────┐
+│                    INSTALLATION SEQUENCE                          │
+└───────────────────────────────────────────────────────────────────┘
+1. Upload fixed printer.cfg
+2. RESTART
+3. QUERY_PROBE (should return "probe: open")
+4. G28
+5. Z_OFFSET_CALIBRATION (paper test)
+6. G28
+7. QUAD_GANTRY_LEVEL
+8. BED_MESH_CALIBRATE (wait 5 min)
+9. SAVE_CONFIG
+10. Test print!
+
+┌───────────────────────────────────────────────────────────────────┐
+│                     ESSENTIAL COMMANDS                            │
+└───────────────────────────────────────────────────────────────────┘
+Check probe:          QUERY_PROBE
+Home:                 G28
+Calibrate offset:     Z_OFFSET_CALIBRATION
+Level gantry:         QUAD_GANTRY_LEVEL
+Mesh bed:             BED_MESH_CALIBRATE
+Save config:          SAVE_CONFIG
+
+Adjust Z live:
+  Up:   SET_GCODE_OFFSET Z=+0.05
+  Down: SET_GCODE_OFFSET Z=-0.05
+
+┌───────────────────────────────────────────────────────────────────┐
+│                      QUICK TROUBLESHOOTING                        │
+└───────────────────────────────────────────────────────────────────┘
+Error                        Fix
+──────────────────────────────────────────────────────────────────
+Unknown i2c_bus             Check i2c_bus: i2c1_PB6_PB7
+probe: TRIGGERED            Increase z_offset by 0.5
+Failed to connect           Check Eddy cable connection
+First layer too close       SET_GCODE_OFFSET Z=+0.05
+First layer too far         SET_GCODE_OFFSET Z=-0.05
+Mesh takes forever          Normal! 41×41 = ~5 minutes
+
+┌───────────────────────────────────────────────────────────────────┐
+│                      SUCCESS CHECKLIST                            │
+└───────────────────────────────────────────────────────────────────┘
+[ ] RESTART shows "Ready"
+[ ] QUERY_PROBE returns "probe: open"
+[ ] Z-offset calibrated with paper
+[ ] QGL completes without errors
+[ ] 41×41 mesh finishes (~5 min)
+[ ] Test print first layer is smooth
+[ ] Test print completes
+[ ] Configuration saved
+
+┌───────────────────────────────────────────────────────────────────┐
+│                   OLD vs NEW COMPARISON                           │
+└───────────────────────────────────────────────────────────────────┘
+                  OLD                NEW
+─────────────────────────────────────────────────────────────────
+Probe type:       Contact            Non-contact
+Speed:            5 mm/s             400 mm/s  
+Points:           9×9 (81)           41×41 (1,681)
+Time:             ~2 min             ~5 min
+Sound:            Click-click        Silent
+Quality:          Good               Excellent
+
+┌───────────────────────────────────────────────────────────────────┐
+│                      FIRST LAYER SIGNS                            │
+└───────────────────────────────────────────────────────────────────┘
+✅ GOOD:                      ❌ BAD:
+─ Smooth, glassy             ─ Gaps between lines
+─ Lines fuse together        ─ Ridges/elephant's foot
+─ Consistent corner-corner   ─ Thin spots
+─ No gaps                    ─ Not sticking
+─ Can't feel lines           ─ Rough texture
+
+┌───────────────────────────────────────────────────────────────────┐
+│                      PRO TIPS                                     │
+└───────────────────────────────────────────────────────────────────┘
+• Always QGL before meshing
+• Heat soak bed 10 min before mesh
+• Clean PEI sheet before mesh
+• Don't interrupt 41×41 mesh (5 min)
+• Save mesh as default after success
+• Re-mesh if temp changes >10°C
+• Trust the Eddy - it's more accurate!
+
+┌───────────────────────────────────────────────────────────────────┐
+│                   TIME EXPECTATIONS                               │
+└───────────────────────────────────────────────────────────────────┘
+Config upload:        2 min
+Z-offset calibration: 5 min
+QGL:                  2 min
+Bed mesh (41×41):     5 min
+First test print:     30 min
+────────────────────────────
+TOTAL:                ~45 min
+
+┌───────────────────────────────────────────────────────────────────┐
+│                      FILE GUIDE                                   │
+└───────────────────────────────────────────────────────────────────┘
+README.md                    → Start here, overview
+ACTION_PLAN.md              → Quick 5-min steps
+EDDY_SETUP_GUIDE.md         → Detailed walkthrough
+EDDY_QUICK_REF.md           → Command reference
+CONFIG_CHANGES_EXPLAINED.md → Technical details
+FIRST_PRINT_EXPECTATIONS.md → What to watch for
+VISUAL_COMPARISON.txt       → ASCII diagrams
+CHEAT_SHEET.txt             → This file!
+
+═══════════════════════════════════════════════════════════════════
+
+BOTTOM LINE:
+  1. Fix i2c_bus line
+  2. Calibrate Z-offset
+  3. Run 41×41 mesh
+  4. Print perfectly!
+
+═══════════════════════════════════════════════════════════════════

@@ -1,0 +1,539 @@
+[include mainsail.cfg]
+[include timelapse.cfg]
+#[include get_ip.cfg]
+#[include plr.cfg]
+[include Macro.cfg]
+[include moonraker_obico_macros.cfg]
+
+[mcu]      
+serial: /dev/serial/by-id/usb-Klipper_stm32f103xe_38FFDD053348523722842451-if00
+restart_method: command     
+
+[mcu extra_mcu]
+serial: /dev/serial/by-id/usb-Klipper_stm32f103xe_56FF6C067166555620240387-if00
+restart_method: command      
+
+
+[adxl345]
+cs_pin:extra_mcu:PB12
+axes_map: x,z,y 
+
+[exclude_object]
+
+[resonance_tester]
+accel_chip: adxl345
+probe_points:
+    175, 175, 30  # an example175 Y175 Z30
+accel_per_hz:50
+min_freq:20
+max_freq:40
+max_smoothing:0.2
+hz_per_sec:0.5
+
+[temperature_sensor mcu_temp]         
+sensor_type: temperature_mcu
+min_temp:0
+max_temp:100
+
+[temperature_fan MCU_fan]
+pin: PA1
+max_power: 1.0
+shutdown_speed: 1.0
+kick_start_time: 0.5
+off_below: 0.05
+sensor_type: temperature_host
+control: watermark
+target_temp: 45
+min_temp: 15
+max_temp: 80
+max_speed: 1.0
+min_speed: 0.0
+
+[temperature_sensor Host_temp]     
+sensor_type: temperature_host
+min_temp: 0
+max_temp: 110
+
+[temperature_sensor Toolhead_Temp]
+sensor_type: temperature_mcu
+sensor_mcu: extra_mcu
+
+[virtual_sdcard] 
+path:/home/biqu/printer_data/gcodes/
+
+[pause_resume]
+
+[printer]
+kinematics: corexy           
+max_velocity: 700            
+max_accel: 10000  # Still very fast, more reliable, was 40000 
+#  max_accel_to_decel: 5000           
+max_z_velocity: 20           
+max_z_accel: 500             
+square_corner_velocity: 5.0  
+
+[input_shaper]
+damping_ratio_x: .1
+damping_ratio_y: .1
+#shaper_type_x = mzv
+shaper_freq_x = 40.2
+#shaper_type_y = mzv
+shaper_freq_y = 38.0
+
+# =====================================================
+# SOVOL EDDY CURRENT PROBE CONFIGURATION
+# =====================================================
+# NOTE: Eddy connects to BL_TOUCH port on toolhead MCU
+# The Eddy uses the existing extra_mcu, NOT a separate MCU
+
+[probe_eddy_current sovol_eddy]
+sensor_type: ldc1612
+i2c_mcu: extra_mcu
+i2c_bus: i2c1_PB6_PB7     # I2C bus on toolhead board
+reg_drive_current: 15      # Will be calibrated with LDC_CALIBRATE_DRIVE_CURRENT
+x_offset: -24              # Sovol Eddy offset from manual
+y_offset: -12              # Sovol Eddy offset from manual
+z_offset: 0.5              # Starting point - will be calibrated
+speed: 5.0
+lift_speed: 12.0
+samples: 3
+samples_result: median
+samples_tolerance: 0.01
+samples_tolerance_retries: 3
+
+# Temperature compensation for Eddy coil
+[temperature_probe sovol_eddy]
+sensor_type: Generic 3950
+sensor_pin: extra_mcu:PA5  # Thermistor on toolhead
+horizontal_move_z: 2
+
+# =====================================================
+# Z ENDSTOP CONFIGURATION
+# =====================================================
+# Eddy cannot be used for Z homing, only probing
+# Using pressure switch for Z endstop
+
+[homing_override]
+gcode:
+   {% if not 'Z' in params and not 'Y' in params and 'X' in params %}
+     G28 X
+     G0 X348 F1200
+   {% elif not 'Z' in params and not 'X' in params and 'Y' in params %}
+     G28 Y
+     G0 Y360  F1200
+   {% elif not 'Z' in params and 'X' in params and 'Y' in params %}
+     G28 Y
+     G0 Y360  F1200
+     G4 P2000
+     G28 X
+     G0 X348  F1200
+   {% elif 'Z' in params and not 'X' in params and not 'Y' in params %}
+     G90
+     G0  X191 Y165 F3600
+     G28 Z
+     G0  Z10 F600
+   {% else %}
+     G90
+     G0 Z5 F300
+     G28 Y
+     G0 Y360  F1200
+     G4 P2000
+     G28 X
+     G0 X348  F1200
+     G90
+     G0  X191 Y165 F3600
+     G28 Z
+     G0  Z10 F600
+   {% endif %}
+axes: xyz
+set_position_z: 0
+
+[bed_mesh]
+speed: 250                 # Faster with Eddy!
+horizontal_move_z: 3       # Can run lower with Eddy
+mesh_min: 16, 18           # 10+(-24)=16, 10+(-12)=18 adjusted for offsets
+mesh_max: 331, 352         # 355-24=331, 364-12=352 adjusted for offsets
+probe_count: 7,7           # 7x7 is plenty with Eddy's accuracy
+algorithm: bicubic   
+bicubic_tension: 0.2
+mesh_pps:3,3
+adaptive_margin: 5
+fade_start: 0.5
+fade_end: 5.0
+fade_target: 0
+
+[quad_gantry_level]          
+gantry_corners:              
+	-60,-10
+	410,420
+points:
+	60, 22       # Adjusted for -24,-12 offsets (36-(-24)=60, 10-(-12)=22)
+	60, 332      # Adjusted for offsets
+	370, 332     # Adjusted for offsets
+	370, 22      # Adjusted for offsets
+speed: 400                   
+horizontal_move_z: 10       
+retry_tolerance: 0.02      # 20 microns - takes longer but more accurate
+retries: 5                  
+max_adjust: 30              
+
+[z_offset_calibration]
+center_xy_position:191,165      
+endstop_xy_position:289,361                         
+z_hop: 10                       
+z_hop_speed: 15                                  
+    
+[stepper_x]
+step_pin: PE2
+dir_pin: !PE0
+enable_pin: !PE3
+rotation_distance: 40         
+microsteps: 16                
+full_steps_per_rotation:200   
+endstop_pin: tmc2209_stepper_x: virtual_endstop              
+position_min: 0               
+position_endstop: 355         
+position_max: 355             
+homing_speed: 30              
+homing_retract_dist: 0        
+homing_positive_dir: True     
+#--------------------------------------------------------------------
+[tmc2209 stepper_x]
+uart_pin: PE1
+interpolate: True             
+run_current: 1.5                           
+sense_resistor: 0.150         
+stealthchop_threshold: 0      
+uart_address:3
+driver_sgthrs: 65
+diag_pin: PE15
+
+[stepper_y]
+step_pin: PB8
+dir_pin: !PB6
+enable_pin: !PB9
+rotation_distance: 40         
+microsteps: 16                
+full_steps_per_rotation:200   
+endstop_pin: tmc2209_stepper_y: virtual_endstop              
+position_min: 0               
+position_endstop: 364         
+position_max: 364            
+homing_speed: 30              
+homing_retract_dist: 0        
+homing_positive_dir: true     
+#--------------------------------------------------------------------
+[tmc2209 stepper_y]
+uart_pin: PB7
+interpolate: True             
+run_current: 1.5                          
+sense_resistor: 0.150         
+stealthchop_threshold: 0      
+uart_address:3
+driver_sgthrs: 65
+diag_pin: PE13 
+
+[stepper_z] #motherboard：Z3 
+step_pin:PC0    
+dir_pin:PE5    
+enable_pin:!PC1    
+rotation_distance: 40         
+gear_ratio: 80:12             
+microsteps: 16                
+endstop_pin: ^PE12            # Using pressure switch as Z endstop
+position_endstop: 0           # Will be calibrated
+position_max: 347             
+position_min: -5              
+homing_speed: 15.0
+homing_retract_dist: 5.0
+homing_retract_speed: 15.0
+second_homing_speed: 5.0
+
+[tmc2209 stepper_z]
+uart_pin: PE6 
+interpolate: true             
+run_current: 0.58           
+hold_current: 0.58         
+sense_resistor: 0.150         
+stealthchop_threshold: 999999 
+uart_address:3
+
+[stepper_z1] ##motherboard：Z2
+step_pin:PD3  
+dir_pin:!PD1 
+enable_pin:!PD4 
+rotation_distance: 40         
+gear_ratio: 80:12            
+microsteps: 16               
+
+[tmc2209 stepper_z1]
+uart_pin:PD2  
+interpolate: true             
+run_current:  0.58          
+hold_current: 0.58           
+sense_resistor: 0.150         
+stealthchop_threshold: 999999 
+uart_address:3
+
+[stepper_z2] ##motherboard：Z1
+step_pin:PD7
+dir_pin:PD5   
+enable_pin:!PB5
+rotation_distance: 40         
+gear_ratio: 80:12             
+microsteps: 16                
+
+[tmc2209 stepper_z2]
+uart_pin:PD6  
+interpolate: true             
+run_current: 0.58            
+hold_current: 0.58           
+sense_resistor: 0.150         
+stealthchop_threshold: 999999 
+uart_address:3
+
+[stepper_z3] ##motherboard：Z4
+step_pin:PD11 
+dir_pin:!PD9 
+enable_pin:!PD12   
+rotation_distance: 40         
+gear_ratio: 80:12             
+microsteps: 16                
+
+[tmc2209 stepper_z3]
+uart_pin:PD10    
+interpolate: true            
+run_current: 0.58         
+hold_current: 0.58           
+sense_resistor: 0.150         
+uart_address:3
+stealthchop_threshold: 999999 
+
+[thermistor my_thermistor_e]
+temperature1:25
+resistance1:110000
+temperature2:100
+resistance2:7008
+temperature3:220
+resistance3:435
+
+[extruder]
+step_pin: extra_mcu:PA8   
+dir_pin: extra_mcu:PB8    
+enable_pin:!extra_mcu: PB11   
+rotation_distance: 6.5 
+microsteps: 16                
+full_steps_per_rotation: 200 
+nozzle_diameter: 0.400        
+filament_diameter: 1.75  
+max_extrude_only_distance: 150     
+heater_pin:extra_mcu:PB9  
+sensor_type:my_thermistor_e  
+pullup_resistor: 11500
+sensor_pin: extra_mcu:PA5  
+min_temp: 5                  
+max_temp: 305                 
+max_power: 1.0                
+min_extrude_temp: 150         
+#control = pid
+#pid_kp = 24.408
+#pid_ki = 3.874
+#pid_kd = 38.442
+pressure_advance: 0.05       
+pressure_advance_smooth_time: 0.035    
+
+[tmc2209 extruder]
+uart_pin: extra_mcu:PB10  
+interpolate: True             
+run_current: 0.8           
+hold_current: 0.8             
+uart_address:3
+sense_resistor: 0.150          
+
+[verify_heater extruder]      
+max_error: 120                
+check_gain_time:30           
+hysteresis: 5                
+heating_gain: 2               
+
+[filament_switch_sensor filament_sensor]
+pause_on_runout: True
+event_delay: 3.0
+pause_delay: 0.5
+switch_pin: PE9
+
+[thermistor my_thermistor]
+temperature1:25
+resistance1:100000
+temperature2:50
+resistance2:18085.4
+temperature3:100
+resistance3:5362.6
+
+[heater_bed]
+heater_pin:PA0
+sensor_type: my_thermistor  
+sensor_pin: PC5
+max_power: 1.0               
+min_temp: 5                  
+max_temp: 105                
+#control = pid
+#pid_kp = 65.599
+#pid_ki = 0.940
+#pid_kd = 1143.879
+
+[verify_heater heater_bed]      
+max_error: 120                
+check_gain_time:40           
+hysteresis: 5                
+heating_gain: 2 
+
+[fan_generic fan0] # back model cooling fan
+pin: extra_mcu:PA7
+max_power: 1.0
+
+[fan_generic fan1] # front model cooling fan
+pin: extra_mcu:PB1
+max_power: 1.0
+
+[fan_generic fan3] # exhaust fan
+pin: PA2
+max_power: 1.0
+shutdown_speed: 0
+kick_start_time: 0.2
+
+[delayed_gcode FAN_CONTROL]  # this is to control and run the exhaust fan TD
+gcode: FAN_CONTROL
+initial_duration: 10
+
+[heater_fan hotend_fan]      
+pin: extra_mcu:PA6   
+max_power: 1.0               
+kick_start_time: 0.5         
+heater: extruder             
+heater_temp: 45              
+tachometer_pin:extra_mcu:PA1
+tachometer_ppr: 1
+tachometer_poll_interval: 0.0013
+
+[board_pins]
+aliases:
+    # EXP1 header
+    EXP1_1=PA8,   EXP1_2=PC9,
+    EXP1_3=PA10,  EXP1_4=PA9,
+    EXP1_5=PC11,  EXP1_6=PC10,
+    EXP1_7=PD8,   EXP1_8=PC12,
+    EXP1_9=<GND>, EXP1_10=<5V>,
+
+    # EXP2 header
+    EXP2_1=PB14,  EXP2_2=PB13,
+    EXP2_3=PC7,   EXP2_4=PB12,
+    EXP2_5=PC6,   EXP2_6=PB15,
+    EXP2_7=PC8,   EXP2_8=<RST>,
+    EXP2_9=<GND>, EXP2_10=<5V>
+
+[display]                    
+lcd_type: uc1701
+cs_pin: EXP1_3
+a0_pin: EXP1_4
+rst_pin: EXP1_5
+encoder_pins: ^EXP2_5, ^EXP2_3
+click_pin: ^!EXP1_2
+contrast: 63
+spi_software_miso_pin: EXP2_1
+spi_software_mosi_pin: EXP2_6
+spi_software_sclk_pin: EXP2_2
+
+[output_pin beeper]
+pin: EXP1_1
+pwm: False
+value: 0
+
+[neopixel Screen_Colour]     
+pin: EXP1_6
+chain_count: 3
+color_order: RGB             
+initial_RED: 0.5             
+initial_GREEN: 0.4           
+initial_BLUE: 0.7           
+
+[gcode_arcs]                       
+resolution: 1.0                    
+
+[output_pin main_led]
+pin:PA3
+pwm: 1
+value:1
+cycle_time: 0.010
+
+[idle_timeout]
+gcode: _IDLE_TIMEOUT
+timeout: 600
+
+[save_variables]
+filename =/home/biqu/printer_data/config/saved_variables.cfg
+
+#*# <---------------------- SAVE_CONFIG ---------------------->
+#*# DO NOT EDIT THIS BLOCK OR BELOW. The contents are auto-generated.
+#*#
+#*# [input_shaper]
+#*# shaper_type_x = ei
+#*# shaper_type_y = zv
+#*#
+#*# [bed_mesh first new firmware]
+#*# version = 1
+#*# points =
+#*# 	0.716341, 0.638529, 0.582279, 0.547591, 0.509154, 0.514779, 0.546654, 0.589779, 0.671341
+#*# 	0.508216, 0.471654, 0.439779, 0.431341, 0.418216, 0.436029, 0.483841, 0.546654, 0.637591
+#*# 	0.391966, 0.383529, 0.370404, 0.376966, 0.387279, 0.417279, 0.469779, 0.543841, 0.634779
+#*# 	0.287904, 0.298216, 0.307591, 0.330091, 0.356341, 0.395716, 0.461341, 0.535404, 0.630091
+#*# 	0.263529, 0.259779, 0.275716, 0.301966, 0.327279, 0.385404, 0.464154, 0.529779, 0.636654
+#*# 	0.351654, 0.295404, 0.294466, 0.319779, 0.367591, 0.406966, 0.486654, 0.541029, 0.645091
+#*# 	0.446341, 0.372279, 0.339466, 0.345091, 0.372279, 0.405091, 0.457591, 0.514779, 0.616029
+#*# 	0.597279, 0.483841, 0.453841, 0.433216, 0.443529, 0.463216, 0.500716, 0.545716, 0.616029
+#*# 	0.739779, 0.654466, 0.593529, 0.570091, 0.545716, 0.541029, 0.567279, 0.601029, 0.675091
+#*# min_x = 10.0
+#*# max_x = 332.96
+#*# min_y = 10.0
+#*# max_y = 340.0
+#*# x_count = 9
+#*# y_count = 9
+#*# mesh_x_pps = 3
+#*# mesh_y_pps = 3
+#*# algo = bicubic
+#*# tension = 0.4
+#*#
+#*# [bed_mesh default]
+#*# version = 1
+#*# points =
+#*# 	0.410000, 0.312500, 0.193750, 0.051250, -0.122500, -0.294375, -0.470000, -0.663125, -0.868125
+#*# 	0.417500, 0.284375, 0.138125, 0.000625, -0.171875, -0.338125, -0.498750, -0.672500, -0.841250
+#*# 	0.442500, 0.316875, 0.166875, 0.020000, -0.148125, -0.321875, -0.486875, -0.655625, -0.821875
+#*# 	0.466875, 0.340625, 0.191875, 0.045625, -0.108125, -0.274375, -0.432500, -0.610625, -0.787500
+#*# 	0.513750, 0.398125, 0.250000, 0.096875, -0.059375, -0.215625, -0.357500, -0.535625, -0.690000
+#*# 	0.665000, 0.500625, 0.336250, 0.185000, 0.047500, -0.105625, -0.232500, -0.402500, -0.535625
+#*# 	0.788750, 0.616250, 0.441875, 0.281250, 0.137500, -0.001250, -0.135625, -0.270000, -0.359375
+#*# 	0.973750, 0.777500, 0.602500, 0.433750, 0.288750, 0.154375, 0.040625, -0.066875, -0.155000
+#*# 	1.198125, 0.990625, 0.791875, 0.626875, 0.476250, 0.341875, 0.253750, 0.169375, 0.125625
+#*# x_count = 9
+#*# y_count = 9
+#*# mesh_x_pps = 3
+#*# mesh_y_pps = 3
+#*# algo = bicubic
+#*# tension = 0.4
+#*# min_x = 10.0
+#*# max_x = 332.96
+#*# min_y = 10.0
+#*# max_y = 340.0
+#*#
+#*# [extruder]
+#*# control = pid
+#*# pid_kp = 26.484
+#*# pid_ki = 4.306
+#*# pid_kd = 40.718
+#*#
+#*# [heater_bed]
+#*# control = pid
+#*# pid_kp = 68.334
+#*# pid_ki = 1.111
+#*# pid_kd = 1050.633
