@@ -48,41 +48,44 @@ captive_portal:
 web_server:
   port: 80
 
-# Motor speed control (PWM)
+## Motor 1 control
 output:
   - platform: ledc
-    pin: GPIO13
-    id: motor1_speed
-    frequency: 1000 Hz
+    pin: GPIO18
+    id: motor1_ena
+    frequency: 500 Hz
+    inverted: false
 
-# Motor direction and control
 switch:
-  # Motor 1 main control
-  - platform: template
+  # Direction pins
+  - platform: gpio
+    pin: GPIO19
+    id: motor1_in1
+    restore_mode: ALWAYS_OFF
+
+  - platform: gpio
+    pin: GPIO21
+    id: motor1_in2
+    restore_mode: ALWAYS_OFF
+
+  # Motor enable (THIS is the important change)
+  - platform: output
     name: "Test Motor"
-    id: motor1_switch
-    turn_on_action:
-      - output.turn_on: motor1_speed
-      - output.set_level:
-          id: motor1_speed
-          level: 100%
+    output: motor1_ena
+    restore_mode: ALWAYS_OFF
+    on_turn_on:
       - switch.turn_on: motor1_in1
       - switch.turn_off: motor1_in2
-    turn_off_action:
-      - output.turn_off: motor1_speed
+      - output.set_level:
+          id: motor1_ena
+          level: 1.0
+    on_turn_off:
+      - output.set_level:
+          id: motor1_ena
+          level: 0.0
       - switch.turn_off: motor1_in1
       - switch.turn_off: motor1_in2
-  
-  # Motor 1 direction pins
-  - platform: gpio
-    pin: GPIO12
-    id: motor1_in1
-    internal: true
-    
-  - platform: gpio
-    pin: GPIO15
-    id: motor1_in2
-    internal: true
+
 ```
 
 
@@ -94,68 +97,39 @@ switch:
 # Motor 2 speed control
 output:
   - platform: ledc
-    pin: GPIO13
-    id: motor1_speed
-    frequency: 1000 Hz
-    
-  - platform: ledc
     pin: GPIO23
-    id: motor2_speed
-    frequency: 1000 Hz
+    id: motor2_enb
+    frequency: 500 Hz
+    inverted: false
 
-# Motor controls
 switch:
-  # Motor 1 (keep what you have)
-  - platform: template
-    name: "Test Motor 1"
-    id: motor1_switch
-    turn_on_action:
-      - output.turn_on: motor1_speed
-      - output.set_level:
-          id: motor1_speed
-          level: 100%
-      - switch.turn_on: motor1_in1
-      - switch.turn_off: motor1_in2
-    turn_off_action:
-      - output.turn_off: motor1_speed
-      - switch.turn_off: motor1_in1
-      - switch.turn_off: motor1_in2
-  
-  - platform: gpio
-    pin: GPIO12
-    id: motor1_in1
-    internal: true
-    
-  - platform: gpio
-    pin: GPIO15
-    id: motor1_in2
-    internal: true
-  
-  # Motor 2 (add this)
-  - platform: template
-    name: "Test Motor 2"
-    id: motor2_switch
-    turn_on_action:
-      - output.turn_on: motor2_speed
-      - output.set_level:
-          id: motor2_speed
-          level: 100%
-      - switch.turn_on: motor2_in3
-      - switch.turn_off: motor2_in4
-    turn_off_action:
-      - output.turn_off: motor2_speed
-      - switch.turn_off: motor2_in3
-      - switch.turn_off: motor2_in4
-  
   - platform: gpio
     pin: GPIO22
     id: motor2_in3
-    internal: true
-    
+    restore_mode: ALWAYS_OFF
+
   - platform: gpio
-    pin: GPIO21
+    pin: GPIO17
     id: motor2_in4
-    internal: true
+    restore_mode: ALWAYS_OFF
+
+  - platform: output
+    name: "Test Motor 2"
+    output: motor2_enb
+    restore_mode: ALWAYS_OFF
+    on_turn_on:
+      - switch.turn_on: motor2_in3
+      - switch.turn_off: motor2_in4
+      - output.set_level:
+          id: motor2_enb
+          level: 1.0
+    on_turn_off:
+      - output.set_level:
+          id: motor2_enb
+          level: 0.0
+      - switch.turn_off: motor2_in3
+      - switch.turn_off: motor2_in4
+
 ```
 
 **My recommendation:** 
